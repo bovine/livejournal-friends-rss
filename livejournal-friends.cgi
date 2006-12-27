@@ -26,7 +26,7 @@ sub striphtml ($) {
 
 my $username = param('username');
 die "missing or invalid username specified\n" if $username !~ m/^\w+$/;
-my $ljurl = sprintf("http://www.livejournal.com/users/%s/friends", $username);
+my $ljurl = sprintf("http://%s.livejournal.com/friends", $username);
 
 
 my $ua = new LWP::UserAgent;
@@ -110,58 +110,34 @@ while ($html =~ m|<tr>(.*?)</tr>|gis) {
 
 
 
-if (param('mode') eq 'rss') {
-    print "Content-type: text/xml\n\n";
-    print "<rss version=\"2.0\">\n";
-    print "<channel><title>LiveJournal Friends for $username</title>\n";
-    print "<link>$ljurl</link>\n";
-    print "<description>LiveJournal Friends for $username</description>\n";
-    print "<language>en-us</language>\n";
-    print "<managingEditor>$username\@users.livejournal.com</managingEditor>\n";
-    print "<webMaster>$username\@users.livejournal.com</webMaster>\n";
+print "Content-type: text/xml\n\n";
+print "<rss version=\"2.0\">\n";
+print "<channel><title>LiveJournal Friends for $username</title>\n";
+print "<link>$ljurl</link>\n";
+print "<description>LiveJournal Friends for $username</description>\n";
+print "<language>en-us</language>\n";
+print "<managingEditor>$username\@users.livejournal.com</managingEditor>\n";
+print "<webMaster>$username\@users.livejournal.com</webMaster>\n";
 
-    foreach my $oneitem (@rssitems) {
-	print '<item>';
-	if (defined($oneitem->{'iid'})) {
-	    print '<guid isPermaLink="false">'. $oneitem->{'iid'} . '</guid>';
-	} 
-	if (defined($oneitem->{'title'})) {
-	    print '<title>' . $oneitem->{'title'} . '</title>';
-	}
-	if (defined($oneitem->{'link'})) {
-	    print "<link>" . $oneitem->{'link'} . "</link>";
-	} else {
-	    print "<link>" . "about:blank" . "</link>";
-	}
-	if (defined($oneitem->{'pubdate'})) {
-	    print "<pubDate>" . $oneitem->{'pubdate'} . "</pubDate>";
-	}
-	print "</item>\n";
+foreach my $oneitem (@rssitems) {
+    print '<item>';
+    if (defined($oneitem->{'iid'})) {
+	print '<guid isPermaLink="false">'. $oneitem->{'iid'} . '</guid>';
+    } 
+    if (defined($oneitem->{'title'})) {
+	print '<title>' . $oneitem->{'title'} . '</title>';
     }
-
-    print "</channel></rss>\n";
-
-
-} else {
-    print "Content-type: text/xml\n\n";
-    print "<klipfood>\n";
-
-    foreach my $oneitem (@rssitems) {
-	if (defined($oneitem->{'iid'})) {
-	    print '<item iid="' . $oneitem->{'iid'} . '">';
-	} else {
-	    print '<item>';
-	}
-	if (defined($oneitem->{'title'})) {
-	    print '<title>' . $oneitem->{'title'} . '</title>';
-	}
-	if (defined($oneitem->{'link'})) {
-	    print "<link>" . $oneitem->{'link'} . "</link>";
-	}
-	print "</item>\n";
+    if (defined($oneitem->{'link'})) {
+	print "<link>" . $oneitem->{'link'} . "</link>";
+    } else {
+	print "<link>" . "about:blank" . "</link>";
     }
-
-    print "</klipfood>\n";
+    if (defined($oneitem->{'pubdate'})) {
+	print "<pubDate>" . $oneitem->{'pubdate'} . "</pubDate>";
+    }
+    print "</item>\n";
 }
+
+print "</channel></rss>\n";
 
 exit 0;
