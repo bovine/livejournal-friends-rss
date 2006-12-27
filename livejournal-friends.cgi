@@ -2,36 +2,47 @@
 
 require LWP::UserAgent;
 require HTTP::Response;
+require HTTP::Cookies;
 require URI::URL;
 require DateTime::Format::Mail;
 require DateTime::Format::Strptime;
 use Digest::MD5 qw(md5_hex);
 use CGI qw/:standard/;
 use CGI::Carp qw(fatalsToBrowser);
-use constant MAXITEMS => 25;
 use strict;
-
-
-sub striphtml ($) {
-    my $html = shift;
-    $html =~ s/<[^>]+>/ /gs;
-    $html =~ s/\&\w+\;/?/gs;
-    $html =~ s/\&\#\d+\;/?/gs;
-    $html =~ s/^\s+//s;
-    $html =~ s/\s+$//s;
-    return $html;
-}
 
 
 
 my $username = param('username');
+my $password = param('password');
 die "missing or invalid username specified\n" if $username !~ m/^\w+$/;
-my $ljurl = sprintf("http://%s.livejournal.com/friends", $username);
 
+if ($username eq 'bovineone' && !length($password) && open(STOREPASS, "/home/jlawson/.ljpassword")) {
+    $password = <STOREPASS>;
+    chomp($password);
+    close(STOREPASS);
+}
 
+die "missing password\n" if !length($password);
 my $ua = new LWP::UserAgent;
-my $request = new HTTP::Request('GET', $ljurl);
-my $response = $ua->request($request);
+$ua->cookie_jar(HTTP::Cookies->new());
+
+
+
+my $ljloginurl = "http://www.livejournal.com/mobile/login.bml";
+my %loginfields = ( 'user' => $username,
+		    'password' => $password );
+my $response = $ua->post($ljloginurl, \%loginfields);
+
+if (!$response->is_success && !$response->is_redirect) {
+    print "Content-type: text/html\n\n";
+    print $response->error_as_HTML;
+    exit 0;
+}
+
+my $ljfriendsurl = "http://www.livejournal.com/mobile/friends.bml";
+$response = $ua->get($ljfriendsurl);
+
 if (!$response->is_success) {
     print "Content-type: text/html\n\n";
     print $response->error_as_HTML;
@@ -39,81 +50,33 @@ if (!$response->is_success) {
 }
 
 
-
 my $html = $response->content;
-$html =~ s|^.*?Below are the most recent.*?<table[^>]+>||s 
+
+
+$html =~ s|^.*?<h1>Friends Page</h1>||s
     or die "could not remove header\n";
-$html =~ s|</table>\s+?<center>[^\n]+?Previous\s+\d+.*$||s 
+$html =~ s|</body>.*$||s 
     or die "could not remove footer\n";
 
 
 my $lastdate;
 my @rssitems;
-while ($html =~ m|<tr>(.*?)</tr>|gis) {
-    my @columns = ($1 =~ m|<td[^>]*>(.*?)</td>|gis);
-    
-    my %newitem;
-    if (scalar(@columns) == 1) {
-	# parse date stamp.
-	my $newdatetxt = striphtml($columns[0]);
-	next if $newdatetxt !~ m/\S+/;
-	next if $newdatetxt !~ m/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i;
-	my $tmpdatetxt = $newdatetxt;
-	$tmpdatetxt =~ s/(\d)(st|nd|rd|th),/$1,/s;
-	my $Strp = new DateTime::Format::Strptime('pattern' => '%A, %B %e, %Y', 'time_zone' => 'US/Central');
-	my $dateobj = $Strp->parse_datetime($tmpdatetxt) or next;
-	$lastdate = $dateobj;
+while ($html =~ m|<a href='(.*?)'><b>(.*?)</b></a>: <a href='(.*?)\?format=light'>(.*?)</a><br />|gis) {
+    my ($loguserurl, $loguser, $loglink, $logsubject) = ($1, $2, $3, $4);
 
-	# generate record.
-	$newitem{'iid'} = md5_hex($newdatetxt);
-	$newitem{'title'} = "*** $newdatetxt ***" ;
-	$newitem{'pubdate'} =  DateTime::Format::Mail->format_datetime($dateobj);
-	$newitem{'link'} = "javascript:void('$newdatetxt')";
-    } elsif (scalar(@columns) == 3) {
-	my ($loguser, $logtime, $logtext) = map { striphtml($_) } @columns;
-
-	# compute full timestamp.
-	next if ($logtime !~ m/^(\d{1,2}):(\d{1,2})([ap]m?)?$/);
-	my ($hour, $minute) = ($1, $2);
-	$hour %= 12;
-	$hour += 12 if $3 =~ m/^p/i;
-	$lastdate->set('hour' => $hour);
-	$lastdate->set('minute' => $minute);
-
-	# sanitize username
-	if ($loguser =~ m/(\S+)\n\[.*?\]/) {
-	    $loguser = $1;      # community posting, so keep only the community name.
-	} elsif ($loguser !~ m/^\S+$/) {
-	    next;
-	}
-
-	# sanitize summary.
-	if (length($logtext) > 80) {
-	    $logtext = substr($logtext, 0, 80) . "...";
-	}
-
-	# sanitize url to posting.
-	my ($loglink) = ($columns[2] =~ m{<a href=\"(http://www.livejournal.com/(?:users|community)/$loguser/\d+\.html)}is);
-	
-	# generate record.
-	$newitem{'iid'} = md5_hex("$loguser $lastdate $logtime");
-	$newitem{'title'} = escapeHTML("($logtime) $loguser -- $logtext");
-	$newitem{'link'} = escapeHTML($loglink);
-	$newitem{'pubdate'} = DateTime::Format::Mail->format_datetime($lastdate);
-    } else {
-	#print STDERR "got " . scalar(@columns)  . " columns\n";
-	next;
-    }
+    # generate record.
+    my %newitem = ( 'iid' => md5_hex("$loguser $logsubject"),
+		    'title' => escapeHTML("$loguser -- $logsubject"),
+		    'link' => escapeHTML($loglink)
+		    );
     push(@rssitems, \%newitem);
 }
-
-
 
 
 print "Content-type: text/xml\n\n";
 print "<rss version=\"2.0\">\n";
 print "<channel><title>LiveJournal Friends for $username</title>\n";
-print "<link>$ljurl</link>\n";
+print "<link>$ljfriendsurl</link>\n";
 print "<description>LiveJournal Friends for $username</description>\n";
 print "<language>en-us</language>\n";
 print "<managingEditor>$username\@users.livejournal.com</managingEditor>\n";
