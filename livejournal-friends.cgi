@@ -89,7 +89,7 @@ while (($numposts++ < $maxposts) and $html =~ m|<a href='(.*?)'><b>(.*?)</b></a>
 
 #print $itemhtml;
 
-        $itemhtml =~ m|@ <a href=".*?">(\d+)</a>-<a href=".*?">(\d+)</a>-<a href=".*?">(\d+)</a> (\d+):(\d+):(\d+)|gis;
+        $itemhtml =~ m|<a href=".*?">(\d+)</a>-<a href=".*?">(\d+)</a>-<a href=".*?">(\d+)</a> (\d+):(\d+):(\d+)|gis;
         my $ljtime = "$1-$2-$3 $4:$5:$6";
 #print "$ljtime\n";
         my $dt = $strp->parse_datetime($ljtime);
@@ -97,7 +97,7 @@ while (($numposts++ < $maxposts) and $html =~ m|<a href='(.*?)'><b>(.*?)</b></a>
         $pubdate = $rfc822p->format_datetime($dt);
        
 
-        $itemhtml =~ s|^.*?</blockquote>.?<div style='margin-left: 30px'>||s
+        $itemhtml =~ s|^.*?</blockquote>.*?<div>||s
             or die "could not remove item header\n";
         $itemhtml =~ s|<div id='Comments'>.*$||s
             or die "could not remove item footer\n";
