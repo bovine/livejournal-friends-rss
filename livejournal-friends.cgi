@@ -89,7 +89,8 @@ while (($numposts++ < $maxposts) and $html =~ m|<a href='(.*?)'><b>(.*?)</b></a>
 
 #print $itemhtml;
 
-        $itemhtml =~ m|<a href=".*?">(\d+)</a>-<a href=".*?">(\d+)</a>-<a href=".*?">(\d+)</a> (\d+):(\d+):(\d+)|gis;
+        $itemhtml =~ m|<a href=".*?">(\d+)</a>-<a href=".*?">(\d+)</a>-<a href=".*?">(\d+)</a> (\d+):(\d+):(\d+)|gis
+	    or die "could not isolate datestamp\n";
         my $ljtime = "$1-$2-$3 $4:$5:$6";
 #print "$ljtime\n";
         my $dt = $strp->parse_datetime($ljtime);
@@ -114,7 +115,7 @@ while (($numposts++ < $maxposts) and $html =~ m|<a href='(.*?)'><b>(.*?)</b></a>
                   );
     push(@rssitems, \%newitem);
 
-print "$loguserurl, $loguser, $pubdate, $loglink, $logsubject\n";
+#print "$loguserurl, $loguser, $pubdate, $loglink, $logsubject\n";
 
 }
 
