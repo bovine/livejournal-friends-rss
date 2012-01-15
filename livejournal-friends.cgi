@@ -100,7 +100,7 @@ while (($numposts++ < $maxposts) and $html =~ m|<a href='(.*?)'><b>(.*?)</b></a>
 
         $itemhtml =~ s|^.*?</blockquote>.*?<div>||s
             or die "could not remove item header\n";
-        $itemhtml =~ s|<div id='Comments'>.*$||s
+        $itemhtml =~ s|<div id="comments".*$||s
             or die "could not remove item footer\n";
         #strip title, if present
         $itemhtml =~ s|<font face='Arial,Helvetica' size='\+1'><i><b>.*</b></i></font><br />||s;
