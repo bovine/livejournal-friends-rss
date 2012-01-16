@@ -89,7 +89,8 @@ while (($numposts++ < $maxposts) and $html =~ m|<a href='(.*?)'><b>(.*?)</b></a>
 
 #print $itemhtml;
 
-        $itemhtml =~ m|@ <a href=".*?">(\d+)</a>-<a href=".*?">(\d+)</a>-<a href=".*?">(\d+)</a> (\d+):(\d+):(\d+)|gis;
+        $itemhtml =~ m|<a href=".*?">(\d+)</a>-<a href=".*?">(\d+)</a>-<a href=".*?">(\d+)</a> (\d+):(\d+):(\d+)|gis
+	    or die "could not isolate datestamp\n";
         my $ljtime = "$1-$2-$3 $4:$5:$6";
 #print "$ljtime\n";
         my $dt = $strp->parse_datetime($ljtime);
@@ -97,9 +98,9 @@ while (($numposts++ < $maxposts) and $html =~ m|<a href='(.*?)'><b>(.*?)</b></a>
         $pubdate = $rfc822p->format_datetime($dt);
        
 
-        $itemhtml =~ s|^.*?</blockquote>.?<div style='margin-left: 30px'>||s
+        $itemhtml =~ s|^.*?</blockquote>.*?<div>||s
             or die "could not remove item header\n";
-        $itemhtml =~ s|<div id='Comments'>.*$||s
+        $itemhtml =~ s|<div id="comments".*$||s
             or die "could not remove item footer\n";
         #strip title, if present
         $itemhtml =~ s|<font face='Arial,Helvetica' size='\+1'><i><b>.*</b></i></font><br />||s;
@@ -114,7 +115,7 @@ while (($numposts++ < $maxposts) and $html =~ m|<a href='(.*?)'><b>(.*?)</b></a>
                   );
     push(@rssitems, \%newitem);
 
-print "$loguserurl, $loguser, $pubdate, $loglink, $logsubject\n";
+#print "$loguserurl, $loguser, $pubdate, $loglink, $logsubject\n";
 
 }
 
